@@ -30,9 +30,29 @@ def download_mp3():
             buffer = io.BytesIO()
             ydl.download([video_url])
             buffer.seek(0)
-            return send_file(buffer, as_attachment=True, download_name=f"{title}.mp3", mimetype='audio/mpeg')
+
+            # Save the file locally (optional)
+            file_path = f"/tmp/{title}.mp3"  # Using /tmp directory
+            with open(file_path, 'wb') as f:
+                f.write(buffer.read())
+
+            # Generate download URL
+            download_url = request.url_root + 'download/' + title
+
+            return jsonify({
+                "title": title,
+                "download_url": download_url
+            }), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+@app.route('/download/<title>', methods=['GET'])
+def download(title):
+    file_path = f"/tmp/{title}.mp3"  # Using /tmp directory
+    if os.path.exists(file_path):
+        return send_file(file_path, as_attachment=True, download_name=f"{title}.mp3", mimetype='audio/mpeg')
+    else:
+        return jsonify({"error": "File not found"}), 404
 
 if __name__ == '__main__':
     app.run(debug=True)
