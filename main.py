@@ -1,14 +1,17 @@
-from flask import Flask, request, send_file, jsonify
 import os
+from flask import Flask, request, jsonify, send_file
 import yt_dlp
+import io
 
 app = Flask(__name__)
 
-DOWNLOAD_FOLDER = 'downloads'
-if not os.path.exists(DOWNLOAD_FOLDER):
-    os.makedirs(DOWNLOAD_FOLDER)
+@app.route('/download_mp3', methods=['POST'])
+def download_mp3():
+    data = request.get_json()
+    video_url = data.get('url')
+    if not video_url:
+        return jsonify({"error": "URL is required"}), 400
 
-def download_video_as_mp3(url):
     ydl_opts = {
         'format': 'bestaudio/best',
         'postprocessors': [{
@@ -16,26 +19,20 @@ def download_video_as_mp3(url):
             'preferredcodec': 'mp3',
             'preferredquality': '192',
         }],
-        'outtmpl': os.path.join(DOWNLOAD_FOLDER, '%(title)s.%(ext)s'),
+        'outtmpl': '-',  # Use `-` to indicate that the output is a stream
+        'noplaylist': True
     }
 
-    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-        info_dict = ydl.extract_info(url, download=True)
-        title = info_dict.get('title', None)
-        return title + '.mp3'
-
-@app.route('/download_mp3', methods=['POST'])
-def download_mp3():
-    data = request.get_json()
-    url = data.get('url')
-    if not url:
-        return jsonify({'error': 'No URL provided'}), 400
-
     try:
-        filename = download_video_as_mp3(url)
-        return send_file(os.path.join(DOWNLOAD_FOLDER, filename), as_attachment=True)
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info_dict = ydl.extract_info(video_url, download=False)
+            title = info_dict.get('title', 'audio')
+            buffer = io.BytesIO()
+            ydl.download([video_url])
+            buffer.seek(0)
+            return send_file(buffer, as_attachment=True, download_name=f"{title}.mp3", mimetype='audio/mpeg')
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return jsonify({"error": str(e)}), 500
 
 if __name__ == '__main__':
     app.run(debug=True)
