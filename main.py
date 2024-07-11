@@ -1,5 +1,5 @@
 import os
-from flask import Flask, request, jsonify, send_file
+from flask import Flask, request, jsonify, send_file, make_response
 import yt_dlp
 import io
 
@@ -50,7 +50,9 @@ def download_mp3():
 def download(title):
     file_path = f"/tmp/{title}.mp3"  # Using /tmp directory
     if os.path.exists(file_path):
-        return send_file(file_path, as_attachment=True, download_name=f"{title}.mp3", mimetype='audio/mpeg')
+        response = make_response(send_file(file_path, as_attachment=True, download_name=f"{title}.mp3", mimetype='audio/mpeg'))
+        response.headers['Content-Disposition'] = f'attachment; filename={title}.mp3'
+        return response
     else:
         return jsonify({"error": "File not found"}), 404
 
