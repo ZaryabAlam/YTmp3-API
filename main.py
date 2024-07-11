@@ -48,13 +48,16 @@ def download_mp3():
 
 @app.route('/download/<title>', methods=['GET'])
 def download(title):
-    file_path = f"/tmp/{title}.mp3"  # Using /tmp directory
-    if os.path.exists(file_path):
-        response = make_response(send_file(file_path, as_attachment=True, download_name=f"{title}.mp3", mimetype='audio/mpeg'))
-        response.headers['Content-Disposition'] = f'attachment; filename={title}.mp3'
-        return response
-    else:
-        return jsonify({"error": "File not found"}), 404
+    try:
+        file_path = f"/tmp/{title}.mp3"  # Using /tmp directory
+        if os.path.exists(file_path):
+            response = make_response(send_file(file_path, as_attachment=True, download_name=f"{title}.mp3", mimetype='audio/mpeg'))
+            response.headers['Content-Disposition'] = f'attachment; filename={title}.mp3'
+            return response
+        else:
+            return jsonify({"error": "File not found"}), 404
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 if __name__ == '__main__':
     app.run(debug=True)
