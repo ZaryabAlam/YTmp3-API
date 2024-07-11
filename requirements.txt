@@ -2,5 +2,4 @@ Flask
 yt-dlp
 ffmpeg
 ffprobe
-fprobe
 gunicorn
