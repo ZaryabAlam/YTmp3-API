@@ -6,7 +6,7 @@
       "use": "@vercel/python"
     }
   ],
-  "routes": [
+  "rewrites": [
     {
       "src": "/download",
       "methods": [
@@ -20,12 +20,6 @@
         "GET"
       ],
       "dest": "app.py"
-    }
-  ],
-  "rewrites": [
-    {
-      "source": "/(.*)",
-      "destination": "/index.html"
     }
   ]
 }
