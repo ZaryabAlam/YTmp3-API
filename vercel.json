@@ -1,25 +1,14 @@
 {
   "version": 2,
-  "builds": [
-    {
-      "src": "app.py",
-      "use": "@vercel/python"
+  "functions": {
+    "api/**/*.py": {
+      "runtime": "python3.9"
     }
-  ],
+  },
   "routes": [
     {
-      "source": "/download",
-      "methods": [
-        "POST"
-      ],
-      "destination": "app.py"
-    },
-    {
-      "source": "/downloads/(.*)",
-      "methods": [
-        "GET"
-      ],
-      "destination": "app.py"
+      "src": "/api/(.*)",
+      "dest": "/api/$1.py"
     }
   ]
 }
