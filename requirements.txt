@@ -1,5 +1,3 @@
 Flask
-yt-dlp
-ffmpeg
-ffprobe
-gunicorn
+pytube
+pydub
