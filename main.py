@@ -1,60 +1,49 @@
+from flask import Flask, request, jsonify, send_file
 import os
-from flask import Flask, request, jsonify, send_file, make_response
-import yt_dlp
-import io
+from pytube import YouTube
+from pydub import AudioSegment
+from uuid import uuid4
 
 app = Flask(__name__)
+DOWNLOAD_FOLDER = 'downloads'
 
-@app.route('/download_mp3', methods=['POST'])
-def download_mp3():
-    data = request.get_json()
-    video_url = data.get('url')
-    if not video_url:
-        return jsonify({"error": "URL is required"}), 400
+# Create download folder if it doesn't exist
+if not os.path.exists(DOWNLOAD_FOLDER):
+    os.makedirs(DOWNLOAD_FOLDER)
 
-    ydl_opts = {
-        'format': 'bestaudio/best',
-        'postprocessors': [{
-            'key': 'FFmpegExtractAudio',
-            'preferredcodec': 'mp3',
-            'preferredquality': '192',
-        }],
-        'outtmpl': '-',  # Use `-` to indicate that the output is a stream
-        'noplaylist': True
-    }
+@app.route('/download', methods=['POST'])
+def download():
+    youtube_url = request.json.get('url')
+
+    if not youtube_url:
+        return jsonify({"error": "YouTube URL is required"}), 400
 
     try:
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info_dict = ydl.extract_info(video_url, download=False)
-            title = info_dict.get('title', 'audio')
-            buffer = io.BytesIO()
-            ydl.download([video_url])
-            buffer.seek(0)
+        yt = YouTube(youtube_url)
+        print(f"Downloading: {yt.title}")
+        video_stream = yt.streams.filter(only_audio=True).first()
+        video_file = video_stream.download(DOWNLOAD_FOLDER)
 
-            # Save the file locally (optional)
-            file_path = f"/tmp/{title}.mp3"  # Using /tmp directory
-            with open(file_path, 'wb') as f:
-                f.write(buffer.read())
+        # Convert the downloaded file to MP3
+        audio_file = video_file.replace('.webm', '.mp3')
+        audio = AudioSegment.from_file(video_file)
+        audio.export(audio_file, format='mp3')
 
-            # Generate download URL
-            download_url = request.url_root + 'download/' + title
+        os.remove(video_file)  # Remove the original file
 
-            return jsonify({
-                "title": title,
-                "download_url": download_url
-            }), 200
+        unique_filename = f"{uuid4()}.mp3"
+        os.rename(audio_file, os.path.join(DOWNLOAD_FOLDER, unique_filename))
+
+        download_link = f"https://your-vercel-app-url.vercel.app/downloads/{unique_filename}"
+
+        return jsonify({"download_link": download_link})
+
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-@app.route('/download/<title>', methods=['GET'])
-def download(title):
-    file_path = f"/tmp/{title}.mp3"  # Using /tmp directory
-    if os.path.exists(file_path):
-        response = make_response(send_file(file_path, as_attachment=True, download_name=f"{title}.mp3", mimetype='audio/mpeg'))
-        response.headers['Content-Disposition'] = f'attachment; filename={title}.mp3'
-        return response
-    else:
-        return jsonify({"error": "File not found"}), 404
+@app.route('/downloads/<filename>', methods=['GET'])
+def serve_file(filename):
+    return send_file(os.path.join(DOWNLOAD_FOLDER, filename), as_attachment=True)
 
 if __name__ == '__main__':
     app.run(debug=True)

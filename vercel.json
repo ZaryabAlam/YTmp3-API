@@ -9,13 +9,23 @@
   "routes": [
     {
       "src": "/download",
-      "methods": ["POST"],
+      "methods": [
+        "POST"
+      ],
       "dest": "app.py"
     },
     {
       "src": "/downloads/(.*)",
-      "methods": ["GET"],
+      "methods": [
+        "GET"
+      ],
       "dest": "app.py"
+    }
+  ],
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
     }
   ]
 }
