@@ -6,20 +6,20 @@
       "use": "@vercel/python"
     }
   ],
-  "rewrites": [
+  "routes": [
     {
-      "src": "/download",
+      "source": "/download",
       "methods": [
         "POST"
       ],
-      "dest": "app.py"
+      "destination": "app.py"
     },
     {
-      "src": "/downloads/(.*)",
+      "source": "/downloads/(.*)",
       "methods": [
         "GET"
       ],
-      "dest": "app.py"
+      "destination": "app.py"
     }
   ]
 }
