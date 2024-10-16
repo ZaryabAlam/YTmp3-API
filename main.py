@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_file
 import os
 from pytube import YouTube
 from pydub import AudioSegment
@@ -19,25 +19,21 @@ def download():
         return jsonify({"error": "YouTube URL is required"}), 400
 
     try:
-        # Download the audio from the YouTube video
         yt = YouTube(youtube_url)
         print(f"Downloading: {yt.title}")
         video_stream = yt.streams.filter(only_audio=True).first()
         video_file = video_stream.download(DOWNLOAD_FOLDER)
 
         # Convert the downloaded file to MP3
-        audio_file = video_file.replace('.webm', '.mp3')  # Change extension to mp3
+        audio_file = video_file.replace('.webm', '.mp3')
         audio = AudioSegment.from_file(video_file)
         audio.export(audio_file, format='mp3')
 
-        # Remove the original video file
-        os.remove(video_file)
+        os.remove(video_file)  # Remove the original file
 
-        # Generate a unique filename for the MP3 file
         unique_filename = f"{uuid4()}.mp3"
         os.rename(audio_file, os.path.join(DOWNLOAD_FOLDER, unique_filename))
 
-        # Generate the download link
         download_link = f"https://your-vercel-app-url.vercel.app/downloads/{unique_filename}"
 
         return jsonify({"download_link": download_link})
