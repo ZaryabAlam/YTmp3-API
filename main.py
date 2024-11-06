@@ -1,38 +1,70 @@
+import yt_dlp
 import os
-from pytube import YouTube
-from pydub import AudioSegment
-from uuid import uuid4
-from flask import Flask, request, jsonify
+import re
+from flask import Flask, request, jsonify, send_file
 
 app = Flask(__name__)
 
-@app.route('/api/download_mp3', methods=['POST'])
-def download_mp3():
-    data = request.get_json()
-    youtube_url = data.get('url')
+# Path where audio files will be stored
+DOWNLOAD_FOLDER = "downloads"
+if not os.path.exists(DOWNLOAD_FOLDER):
+    os.makedirs(DOWNLOAD_FOLDER)
 
-    if not youtube_url:
-        return jsonify({"error": "YouTube URL is required"}), 400
+def sanitize_filename(filename):
+    # Replace characters that aren't valid in filenames
+    sanitized = re.sub(r'[<>:"/\\|?*]', '', filename)
+    return sanitized.strip()
 
+def download_youtube_audio(youtube_url, output_path='.'):
     try:
-        yt = YouTube(youtube_url)
-        video_stream = yt.streams.filter(only_audio=True).first()
-        video_file = video_stream.download()
+        print("Downloading audio in original format...")
 
-        # Convert the downloaded file to MP3
-        audio_file = video_file.replace('.webm', '.mp3')
-        audio = AudioSegment.from_file(video_file)
-        audio.export(audio_file, format='mp3')
+        # Extract video info to get a sanitized title
+        with yt_dlp.YoutubeDL({'format': 'bestaudio/best'}) as ydl:
+            info_dict = ydl.extract_info(youtube_url, download=False)
+            # Sanitize the title to remove special characters
+            sanitized_title = sanitize_filename(info_dict['title'])
 
-        os.remove(video_file)  # Remove the original file
+        # Update `outtmpl` with sanitized title for direct download
+        ydl_opts = {
+            'format': 'bestaudio/best',  # Download the best available audio
+            'outtmpl': os.path.join(output_path, f'{sanitized_title}.%(ext)s'),  # Save with sanitized title
+        }
 
-        unique_filename = f"{uuid4()}.mp3"
-        os.rename(audio_file, unique_filename)
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info_dict = ydl.extract_info(youtube_url, download=True)
+            downloaded_file_path = os.path.join(output_path, f"{sanitized_title}.{info_dict['ext']}")
+            print(f"Audio file saved at: {downloaded_file_path}")
+            os.rename(downloaded_file_path, downloaded_file_path)
+            return downloaded_file_path
 
-        return jsonify({"download_link": f"/api/downloads/{unique_filename}"}), 200
+    except Exception as e:
+        print(f"An error occurred: {e}")
+        return None
+
+@app.route('/convert', methods=['POST'])
+def convert_to_audio():
+    try:
+        # Get the YouTube URL from the POST request
+        data = request.json
+        youtube_url = data.get('url')
+
+        if not youtube_url:
+            return jsonify({"error": "No URL provided"}), 400
+
+        # Call the download function to download the audio
+        audio_file_path = download_youtube_audio(youtube_url, output_path=DOWNLOAD_FOLDER)
+
+        if not audio_file_path or not os.path.exists(audio_file_path):
+            return jsonify({"error": "Audio file could not be created"}), 500
+
+        # Send the audio file as a response
+        return send_file(audio_file_path, as_attachment=True)
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-if __name__ == "__main__":
-    app.run()
+if __name__ == '__main__':
+    app.run(debug=True)
+
+
