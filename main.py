@@ -29,6 +29,7 @@ def download_youtube_audio(youtube_url, output_path='.'):
         ydl_opts = {
             'format': 'bestaudio/best',  # Download the best available audio
             'outtmpl': os.path.join(output_path, f'{sanitized_title}.%(ext)s'),  # Save with sanitized title
+             'cookiefile': 'cookies.txt',  # Use cookies to bypass restrictions
         }
 
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
